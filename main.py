@@ -1,9 +1,8 @@
-# register_page.py
 import unittest
 from selenium import webdriver
 from selenium.webdriver.edge.options import Options
 import time
-from register_page import RegisterPage
+from account_management.register_page import RegisterPage
 from selenium.common.exceptions import TimeoutException
 
 

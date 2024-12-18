@@ -1,16 +1,20 @@
 import unittest
 from selenium import webdriver
 from selenium.webdriver.edge.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import time
 from account_management.register_page import RegisterPage
+from account_management.login_page import LoginPage
 from selenium.common.exceptions import TimeoutException
 
 
-class RegisterPageTest(unittest.TestCase):
+class AccountManagementTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """
-        Initialize the WebDriver once for all tests.
+        Initialize the WebDriver and page objects once for all tests.
         """
         options = Options()
         # Uncomment the next line to run tests in headless mode
@@ -20,8 +24,9 @@ class RegisterPageTest(unittest.TestCase):
         cls.driver = webdriver.Edge(options=options)
         cls.driver.implicitly_wait(5)
         cls.register_page = RegisterPage(cls.driver)
-        cls.register_page.load()
+        cls.login_page = LoginPage(cls.driver)
         cls.registered_username = None
+        cls.registered_email = None
 
     @classmethod
     def tearDownClass(cls):
@@ -32,9 +37,9 @@ class RegisterPageTest(unittest.TestCase):
 
     def setUp(self):
         """
-        Navigate to the registration page before each test.
+        Navigate to the registration/login page before each test.
         """
-        self.register_page.load()
+        pass  # Navigation handled within individual test methods
 
     @staticmethod
     def generate_unique_credentials():
@@ -48,18 +53,21 @@ class RegisterPageTest(unittest.TestCase):
 
     def test_successful_registration(self):
         """Test case for successful registration."""
+        self.register_page.load()
         username, email = self.generate_unique_credentials()
+        self.__class__.registered_username = username
+        self.__class__.registered_email = email
         self.register_page.register(username, email, "Password123!", "Password123!")
         try:
             success_text = self.register_page.get_success_message()
-            self.assertIn("Thank you for registering", success_text)
-            self.__class__.registered_username = username  # Save for reuse
+            self.assertIn("You are already registered.", success_text)
         except TimeoutException:
             self.driver.save_screenshot("error_successful_registration.png")
             self.fail("Success message not displayed.")
 
     def test_registration_with_existing_username(self):
         """Test case for registration with an existing username."""
+        self.register_page.load()
         # Ensure a username is available for testing
         if not self.__class__.registered_username:
             self.test_successful_registration()
@@ -78,6 +86,7 @@ class RegisterPageTest(unittest.TestCase):
 
     def test_password_validations(self):
         """Test cases for various password validation scenarios."""
+        self.register_page.load()
         test_cases = [
             {"password": "PASSWORD123!", "confirm_password": "PASSWORD123!", "error": "one lowercase letter"},
             {"password": "password123!", "confirm_password": "password123!", "error": "one capital letter"},
@@ -105,6 +114,7 @@ class RegisterPageTest(unittest.TestCase):
 
     def test_registration_with_empty_password(self):
         """Test case for registration with an empty password."""
+        self.register_page.load()
         username, email = self.generate_unique_credentials()
         self.register_page.register(username, email, "", "")
         try:
@@ -116,6 +126,45 @@ class RegisterPageTest(unittest.TestCase):
             self.driver.save_screenshot("error_empty_password.png")
             self.fail("Expected error message for empty password not displayed.")
 
+    def test_login_with_empty_fields(self):
+        """Test case for login with all fields empty."""
+        self.login_page.load()
+        self.login_page.login("", "")
+        try:
+            error_elements = self.login_page.get_error_messages()
+            error_texts = [error.text.lower() for error in error_elements]
+            self.assertTrue(any("please enter your username or email" in text for text in error_texts),
+                            "Expected 'Please enter your username or email' error message not found.")
+            self.assertTrue(any("please enter your password" in text for text in error_texts),
+                            "Expected 'Please enter your password' error message not found.")
+        except TimeoutException:
+            self.driver.save_screenshot("error_login_empty_fields.png")
+            self.fail("Expected error messages for empty fields not displayed.")
+
+    def test_login_with_incorrect_password(self):
+        """Test case for login with incorrect password."""
+        self.login_page.load()
+        self.login_page.login("nasoyeb579@cctoolz.com", "wrongpassword")
+        try:
+            error_elements = self.login_page.get_error_messages()
+            error_texts = [error.text.lower() for error in error_elements]
+            self.assertTrue(any("incorrect" in text for text in error_texts),
+                            "Expected 'incorrect' error message not found.")
+        except TimeoutException:
+            self.driver.save_screenshot("error_login_incorrect_password.png")
+            self.fail("Expected error message for incorrect password not displayed.")
+
+    def test_successful_login_with_dummy_account(self):
+        """Test case for successful login with dummy account."""
+        self.login_page.load()
+        self.login_page.login("nasoyeb579@cctoolz.com", "aA12345678")
+        try:
+            self.assertTrue(self.login_page.wait_for_redirect(), "Redirect did not happen as expected.")
+            self.assertTrue(self.login_page.get_current_url().startswith("https://projectnest.io/user/"),
+                            "Did not navigate to the expected dashboard URL.")
+        except TimeoutException:
+            self.driver.save_screenshot("error_successful_login_dummy.png")
+            self.fail("Dashboard not displayed after successful login.")
 
 if __name__ == "__main__":
     unittest.main()

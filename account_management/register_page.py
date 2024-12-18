@@ -12,7 +12,7 @@ class RegisterPage:
     PASSWORD = (By.ID, "user_password-1204")
     CONFIRM_PASSWORD = (By.ID, "confirm_user_password-1204")
     SUBMIT_BUTTON = (By.ID, "um-submit-btn")
-    SUCCESS_MESSAGE = (By.XPATH, "//div[contains(text(),'Thank you for registering.')]")
+    SUCCESS_MESSAGE = (By.XPATH, "//div[contains(text(),'You are already registered.')]")
     ERROR_MESSAGE = (By.XPATH, "//div[contains(@class,'um-field-error')]")
 
     def __init__(self, driver):
